@@ -11,6 +11,13 @@ const emptyText = document.getElementById('emptyText');
 const downloadAll = document.getElementById('downloadAll');
 const dropTitle = document.getElementById('dropTitle');
 const dropHint = document.getElementById('dropHint');
+const preview = document.getElementById('preview');
+const previewName = document.getElementById('previewName');
+const previewImg = document.getElementById('previewImg');
+const previewInfo = document.getElementById('previewInfo');
+const previewSave = document.getElementById('previewSave');
+const previewClose = document.getElementById('previewClose');
+const segButtons = preview.querySelectorAll('.segmented button');
 
 // iOS Safari의 canvas 최대 픽셀 수(약 1,670만)를 넘지 않게 제한
 const MAX_PIXELS = 16_000_000;
@@ -109,11 +116,18 @@ function createItemElement() {
   const li = document.createElement('li');
   li.className = 'result-item';
   li.innerHTML = `
-    <img class="thumb" alt="">
-    <div class="result-info">
-      <p class="file-name"></p>
-      <p class="file-size"></p>
-    </div>
+    <button type="button" class="result-main" aria-label="미리보기" disabled>
+      <span class="thumb-wrap">
+        <img class="thumb" alt="">
+        <span class="zoom" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        </span>
+      </span>
+      <span class="result-info">
+        <span class="file-name"></span>
+        <span class="file-size"></span>
+      </span>
+    </button>
     <a class="btn btn-ghost" aria-disabled="true">저장</a>
   `;
   return li;
@@ -125,6 +139,8 @@ function renderItem(item) {
   const sizeEl = el.querySelector('.file-size');
   const link = el.querySelector('a');
   const thumb = el.querySelector('.thumb');
+  el.querySelector('.result-main').disabled = !blob;
+  if (item === previewItem) renderPreview();
 
   sizeEl.classList.toggle('is-error', !!error);
 
@@ -229,7 +245,15 @@ function addFiles(fileList) {
   if (images.length === 0) return;
 
   for (const file of images) {
-    const item = { file, el: createItemElement(), blob: null, url: null, error: false };
+    const item = {
+      file,
+      el: createItemElement(),
+      blob: null,
+      url: null,
+      originalUrl: URL.createObjectURL(file),
+      error: false,
+    };
+    item.el.querySelector('.result-main').addEventListener('click', () => openPreview(item));
     items.push(item);
     resultList.append(item.el);
     renderItem(item);
@@ -237,6 +261,74 @@ function addFiles(fileList) {
   processAll();
   revealResults();
 }
+
+/* ---------- 미리보기 ---------- */
+
+let previewItem = null;
+let previewView = 'compressed'; // 'compressed' | 'original'
+
+function openPreview(item) {
+  if (!item.blob) return;
+  previewItem = item;
+  previewView = 'compressed';
+  renderPreview();
+  preview.showModal();
+}
+
+function renderPreview() {
+  const item = previewItem;
+  if (!item) return;
+
+  previewName.textContent = item.file.name;
+  segButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === previewView)));
+
+  // 설정 변경으로 다시 줄이는 중이면 원본만 보여줌
+  const showOriginal = previewView === 'original' || !item.blob;
+  const src = showOriginal ? item.originalUrl : item.url;
+  const size = showOriginal ? item.file.size : item.blob.size;
+  const label = showOriginal ? '원본' : '압축본';
+
+  // 해상도는 이미지가 로드된 뒤에야 알 수 있음
+  const showInfo = () => {
+    previewInfo.textContent = item.blob
+      ? `${label} · ${previewImg.naturalWidth}×${previewImg.naturalHeight} · ${formatSize(size)}`
+      : '다시 줄이는 중…';
+  };
+  if (previewImg.getAttribute('src') !== src) {
+    previewInfo.textContent = item.blob ? `${label} · ${formatSize(size)}` : '다시 줄이는 중…';
+    previewImg.onload = showInfo;
+    previewImg.src = src;
+  } else {
+    showInfo();
+  }
+  previewImg.alt = `${item.file.name} ${label}`;
+
+  if (item.blob) {
+    previewSave.href = item.url;
+    previewSave.download = outputName(item.file, item.blob);
+    previewSave.removeAttribute('aria-disabled');
+  } else {
+    previewSave.removeAttribute('href');
+    previewSave.setAttribute('aria-disabled', 'true');
+  }
+}
+
+segButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    previewView = button.dataset.view;
+    renderPreview();
+  });
+});
+
+previewClose.addEventListener('click', () => preview.close());
+// 창 바깥(어두운 배경)을 누르면 닫기
+preview.addEventListener('click', (e) => {
+  if (e.target === preview) preview.close();
+});
+preview.addEventListener('close', () => {
+  previewItem = null;
+  previewImg.removeAttribute('src');
+});
 
 /* ---------- 이벤트 ---------- */
 

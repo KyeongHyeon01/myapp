@@ -74,6 +74,24 @@
     <footer class="footer">모든 처리는 내 기기 안에서만 이루어져요.</footer>
   </div>
 
+  <dialog class="preview" id="preview" aria-labelledby="previewName">
+    <div class="preview-head">
+      <p class="preview-name" id="previewName"></p>
+      <button type="button" class="preview-close" id="previewClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="preview-stage">
+      <img id="previewImg" alt="">
+    </div>
+    <div class="preview-foot">
+      <div class="segmented" role="group" aria-label="비교">
+        <button type="button" data-view="original" aria-pressed="false">원본</button>
+        <button type="button" data-view="compressed" aria-pressed="true">압축본</button>
+      </div>
+      <p class="preview-info" id="previewInfo" aria-live="polite"></p>
+      <a class="btn btn-primary preview-save" id="previewSave">이 사진 저장</a>
+    </div>
+  </dialog>
+
   <script src="app.js"></script>
 </body>
 </html>
